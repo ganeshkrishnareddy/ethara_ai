@@ -118,6 +118,13 @@ export default function ProjectsPage() {
               </div>
 
               <h3 className={styles.projectName}>{project.name}</h3>
+              {project.tags && project.tags.length > 0 && (
+                <div className={styles.tagList}>
+                  {project.tags.map(tag => (
+                    <span key={tag} className={styles.tag}>{tag}</span>
+                  ))}
+                </div>
+              )}
               {project.description && (
                 <p className={styles.projectDesc}>{project.description}</p>
               )}

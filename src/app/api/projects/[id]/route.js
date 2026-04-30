@@ -66,7 +66,7 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Only admins can update the project' }, { status: 403 });
     }
 
-    const { name, description } = await request.json();
+    const { name, description, tags } = await request.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
@@ -77,6 +77,7 @@ export async function PUT(request, { params }) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
+        tags: Array.isArray(tags) ? tags.filter(t => typeof t === 'string').map(t => t.trim()) : undefined,
       },
     });
 

@@ -63,7 +63,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { name, description } = await request.json();
+    const { name, description, tags } = await request.json();
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Project name is required' }, { status: 400 });
@@ -74,6 +74,7 @@ export async function POST(request) {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
+        tags: Array.isArray(tags) ? tags.filter(t => typeof t === 'string').map(t => t.trim()) : [],
         ownerId: session.user.id,
         members: {
           create: {

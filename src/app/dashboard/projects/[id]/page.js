@@ -19,6 +19,8 @@ export default function ProjectDetailPage({ params }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState('');
 
   useEffect(() => { fetchProject(); }, [id]);
 
@@ -36,8 +38,37 @@ export default function ProjectDetailPage({ params }) {
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
   const isOverdue = (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== 'DONE';
 
-  const openCreateTask = () => { setEditingTask(null); setTaskForm({ title: '', description: '', status: 'TODO', priority: 'MEDIUM', dueDate: '', assigneeId: '' }); setError(''); setShowTaskModal(true); };
-  const openEditTask = (t) => { setEditingTask(t); setTaskForm({ title: t.title, description: t.description || '', status: t.status, priority: t.priority, dueDate: t.dueDate ? t.dueDate.split('T')[0] : '', assigneeId: t.assigneeId || '' }); setError(''); setShowTaskModal(true); };
+  const openCreateTask = () => { setEditingTask(null); setTaskForm({ title: '', description: '', status: 'TODO', priority: 'MEDIUM', dueDate: '', assigneeId: '' }); setError(''); setComments([]); setShowTaskModal(true); };
+  const openEditTask = (t) => {
+    setEditingTask(t);
+    setTaskForm({ title: t.title, description: t.description || '', status: t.status, priority: t.priority, dueDate: t.dueDate ? t.dueDate.split('T')[0] : '', assigneeId: t.assigneeId || '' });
+    setError('');
+    fetchComments(t.id);
+    setShowTaskModal(true);
+  };
+
+  const fetchComments = async (taskId) => {
+    try {
+      const res = await fetch(`/api/projects/${id}/tasks/${taskId}/comments`);
+      if (res.ok) setComments(await res.json());
+    } catch {}
+  };
+
+  const handleSaveComment = async (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+    try {
+      const res = await fetch(`/api/projects/${id}/tasks/${editingTask.id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment }),
+      });
+      if (res.ok) {
+        setNewComment('');
+        fetchComments(editingTask.id);
+      }
+    } catch {}
+  };
 
   const handleSaveTask = async (e) => {
     e.preventDefault(); setError(''); setSaving(true);
@@ -155,6 +186,33 @@ export default function ProjectDetailPage({ params }) {
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setShowTaskModal(false)}>Cancel</button><button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editingTask ? 'Update' : 'Create'}</button></div>
             </form>
+
+            {editingTask && (
+              <div className={styles.commentsSection}>
+                <h3 className={styles.commentsTitle}>Comments</h3>
+                <div className={styles.commentsList}>
+                  {comments.map(c => (
+                    <div key={c.id} className={styles.commentItem}>
+                      <div className={styles.commentHeader}>
+                        <span className={styles.commentUser}>{c.user.name}</span>
+                        <span className={styles.commentDate}>{new Date(c.createdAt).toLocaleString()}</span>
+                      </div>
+                      <p className={styles.commentContent}>{c.content}</p>
+                    </div>
+                  ))}
+                  {comments.length === 0 && <p className={styles.noComments}>No comments yet.</p>}
+                </div>
+                <form onSubmit={handleSaveComment} className={styles.commentForm}>
+                  <input
+                    className="input"
+                    placeholder="Write a comment..."
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                  />
+                  <button type="submit" className="btn btn-secondary btn-sm">Post</button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       )}

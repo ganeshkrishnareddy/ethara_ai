@@ -1,0 +1,40 @@
+.loadingContainer { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 1rem; color: var(--text-tertiary); }
+.container { max-width: 1000px; margin: 0 auto; }
+
+.header { margin-bottom: 2rem; }
+.title { font-size: 1.75rem; font-weight: 700; color: var(--text-primary); }
+.subtitle { font-size: 0.875rem; color: var(--text-tertiary); margin-top: 0.25rem; }
+
+.content { display: flex; flex-direction: column; gap: 2rem; }
+
+.profileCard { display: flex; align-items: center; gap: 2rem; padding: 2rem; background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); backdrop-filter: blur(20px); }
+.avatarLarge { width: 80px; height: 80px; display: flex; align-items: center; justify-content: center; background: var(--accent-gradient); border-radius: var(--radius-full); font-size: 1.5rem; font-weight: 700; color: white; box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+.userInfo { display: flex; flex-direction: column; gap: 0.25rem; }
+.userName { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); }
+.userEmail { font-size: 1rem; color: var(--text-secondary); }
+.joinedAt { font-size: 0.8125rem; color: var(--text-tertiary); margin-top: 0.5rem; }
+
+.statsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+.statBox { padding: 1.5rem; background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); display: flex; flex-direction: column; align-items: center; gap: 0.25rem; transition: all var(--transition-base); }
+.statBox:hover { border-color: var(--border-accent); transform: translateY(-2px); box-shadow: var(--shadow-glow); }
+.statVal { font-size: 2rem; font-weight: 700; color: var(--text-primary); }
+.statLab { font-size: 0.75rem; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.settingsSection { padding: 2rem; background: var(--bg-card); border: 1px solid var(--border-primary); border-radius: var(--radius-xl); }
+.sectionTitle { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1.5rem; }
+.settingsList { display: flex; flex-direction: column; gap: 1.5rem; }
+.settingItem { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border-secondary); }
+.settingItem:last-child { border-bottom: none; padding-bottom: 0; }
+.settingLabel { font-size: 0.9375rem; font-weight: 600; color: var(--text-primary); }
+.settingDesc { font-size: 0.8125rem; color: var(--text-tertiary); }
+
+.toggle { width: 44px; height: 24px; position: relative; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle::before { content: ""; position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); transition: .4s; border-radius: 34px; border: 1px solid var(--border-primary); }
+.toggle::after { content: ""; position: absolute; height: 16px; width: 16px; left: 4px; bottom: 3.5px; background-color: white; transition: .4s; border-radius: 50%; }
+.toggle input:checked + ::before { background-color: var(--accent-primary); }
+.toggle input:checked + ::after { transform: translateX(20px); }
+
+@media (max-width: 640px) {
+  .profileCard { flex-direction: column; text-align: center; }
+}

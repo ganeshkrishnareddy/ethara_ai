@@ -1,256 +1,286 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import {
-  Link2,
-  MousePointerClick,
-  TrendingUp,
-  Zap,
-  Plus,
-  ExternalLink,
-  Clock,
-  BarChart3,
-  ArrowUpRight,
-  Sparkles,
-  Layers,
-} from 'lucide-react';
-import StatsCard from '@/components/StatsCard';
-import { ClicksAreaChart, DevicePieChart, BrowsersChart, ReferrersChart } from '@/components/AnalyticsCharts';
-import CreateLinkModal from '@/components/CreateLinkModal';
-import { timeAgo } from '@/lib/utils';
+import Link from 'next/link';
 import styles from './page.module.css';
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
-  const [stats, setStats] = useState(null);
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/dashboard');
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    setLoading(false);
-  };
 
   useEffect(() => {
-    fetchStats();
+    fetch('/api/dashboard')
+      .then((res) => res.json())
+      .then((d) => { setData(d); setLoading(false); })
+      .catch(() => setLoading(false));
   }, []);
 
-  const handleLinkCreated = () => {
-    fetchStats();
+  if (loading) {
+    return (
+      <div className={styles.loadingContainer}>
+        <div className="spinner" style={{ width: 32, height: 32 }}></div>
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  const stats = data?.stats || {};
+
+  const formatDate = (d) => {
+    if (!d) return '';
+    return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'TODO': return 'badge-todo';
+      case 'IN_PROGRESS': return 'badge-in-progress';
+      case 'DONE': return 'badge-done';
+      default: return '';
+    }
+  };
+
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'TODO': return 'To Do';
+      case 'IN_PROGRESS': return 'In Progress';
+      case 'DONE': return 'Done';
+      default: return status;
+    }
+  };
+
+  const getPriorityClass = (priority) => {
+    switch (priority) {
+      case 'LOW': return 'badge-low';
+      case 'MEDIUM': return 'badge-medium';
+      case 'HIGH': return 'badge-high';
+      case 'URGENT': return 'badge-urgent';
+      default: return '';
+    }
   };
 
   return (
-    <div className={styles.page}>
+    <div className={styles.dashboard}>
       <div className={styles.header}>
         <div>
-          <h1 className={styles.title}>
-            Welcome back{session?.user?.name ? `, ${session.user.name}` : ''} 👋
-          </h1>
-          <p className={styles.subtitle}>Here&apos;s an overview of your link performance</p>
+          <h1 className={styles.title}>Dashboard</h1>
+          <p className={styles.subtitle}>Overview of your projects and tasks</p>
         </div>
-        <button
-          className="btn-primary"
-          onClick={() => setShowCreateModal(true)}
-        >
-          <Plus size={18} />
-          <span>New Link</span>
-        </button>
+        <Link href="/dashboard/projects" className="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          New Project
+        </Link>
       </div>
 
-      {loading ? (
-        <div className={styles.loader}>
-          <div className={styles.spinner} />
-          <p>Loading your dashboard...</p>
-        </div>
-      ) : (
-        <>
-          {/* Stats Cards */}
-          <div className={styles.statsGrid}>
-            <StatsCard
-              label="Total Links"
-              value={stats?.totalLinks || 0}
-              icon={Link2}
-              color="purple"
-              trend={stats?.totalLinks > 0 ? '+' + stats.totalLinks + ' total' : null}
-            />
-            <StatsCard
-              label="Total Clicks"
-              value={stats?.totalClicks || 0}
-              icon={MousePointerClick}
-              color="cyan"
-              trend={stats?.clicksToday > 0 ? '+' + stats.clicksToday + ' today' : null}
-            />
-            <StatsCard
-              label="Clicks Today"
-              value={stats?.clicksToday || 0}
-              icon={TrendingUp}
-              color="green"
-              trend={stats?.clicksToday > 0 ? 'Active' : 'No clicks yet'}
-            />
-            <StatsCard
-              label="Avg. Clicks/Link"
-              value={stats?.totalLinks ? Math.round(stats.totalClicks / stats.totalLinks) : 0}
-              icon={Zap}
-              color="orange"
-              trend={stats?.totalClicks > 0 ? 'Performing' : null}
-            />
+      {/* Stats Cards */}
+      <div className={styles.statsGrid}>
+        <div className={`${styles.statCard} ${styles.statProjects}`}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+            </svg>
           </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.totalProjects || 0}</span>
+            <span className={styles.statLabel}>Projects</span>
+          </div>
+        </div>
 
-          {/* Charts Grid */}
-          {stats?.totalClicks > 0 ? (
-            <>
-              <div className={styles.chartsGrid}>
-                <div className={styles.chartLarge}>
-                  <ClicksAreaChart data={stats?.clicksByDate || []} />
-                </div>
-                <div className={styles.chartSmall}>
-                  <DevicePieChart data={stats?.devices || []} />
-                </div>
-              </div>
+        <div className={`${styles.statCard} ${styles.statTasks}`}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 11l3 3L22 4" />
+              <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.totalTasks || 0}</span>
+            <span className={styles.statLabel}>Total Tasks</span>
+          </div>
+        </div>
 
-              <div className={styles.chartsGrid}>
-                <div className={styles.chartSmall}>
-                  <BrowsersChart data={stats?.browsers || []} />
-                </div>
-                <div className={styles.chartLarge}>
-                  <ReferrersChart data={stats?.referrers || []} />
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className={styles.chartsEmpty}>
-              <BarChart3 size={28} className={styles.chartsEmptyIcon} />
-              <h3>Analytics will appear here</h3>
-              <p>Once your links start getting clicks, you&apos;ll see detailed charts with device, browser, and referrer breakdowns.</p>
-            </div>
-          )}
+        <div className={`${styles.statCard} ${styles.statDone}`}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9 12l2 2 4-4" />
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.doneTasks || 0}</span>
+            <span className={styles.statLabel}>Completed</span>
+          </div>
+        </div>
 
-          {/* Top Links */}
-          {stats?.topLinks && stats.topLinks.length > 0 && (
-            <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>
-                <TrendingUp size={18} />
-                Top Performing Links
-              </h2>
-              <div className={styles.topLinks}>
-                {stats.topLinks.map((link, index) => (
-                  <div key={link.id} className={styles.topLinkItem}>
-                    <span className={styles.topLinkRank}>#{index + 1}</span>
-                    <div className={styles.topLinkInfo}>
-                      <span className={styles.topLinkCode}>/{link.shortCode}</span>
-                      <span className={styles.topLinkTitle}>
-                        {link.title || link.originalUrl.substring(0, 40)}
-                      </span>
-                    </div>
-                    <span className={styles.topLinkClicks}>
-                      <MousePointerClick size={13} />
-                      {link.clicks}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+        <div className={`${styles.statCard} ${styles.statOverdue}`}>
+          <div className={styles.statIcon}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <div className={styles.statContent}>
+            <span className={styles.statValue}>{stats.overdueTasks || 0}</span>
+            <span className={styles.statLabel}>Overdue</span>
+          </div>
+        </div>
+      </div>
 
-          {/* Recent Links */}
-          {stats?.recentLinks && stats.recentLinks.length > 0 && (
-            <div className={styles.section}>
-              <h2 className={styles.sectionTitle}>
-                <Clock size={18} />
-                Recent Links
-              </h2>
-              <div className={styles.recentLinks}>
-                <div className={styles.recentHeader}>
-                  <span>Short Link</span>
-                  <span>Original URL</span>
-                  <span>Clicks</span>
-                  <span>Created</span>
-                </div>
-                {stats.recentLinks.map((link) => (
-                  <div key={link.id} className={styles.recentItem}>
-                    <span className={styles.recentCode}>/{link.shortCode}</span>
-                    <a
-                      href={link.originalUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles.recentUrl}
-                    >
-                      <ExternalLink size={12} />
-                      {link.originalUrl.length > 40
-                        ? link.originalUrl.substring(0, 40) + '...'
-                        : link.originalUrl}
-                    </a>
-                    <span className={styles.recentClicks}>
-                      {link.clicks || 0}
-                    </span>
-                    <span className={styles.recentTime}>
-                      {timeAgo(link.createdAt)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {(!stats?.totalLinks || stats.totalLinks === 0) && (
-            <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>
-                <Sparkles size={32} />
-              </div>
-              <h3>Welcome to LinkForge! 🚀</h3>
-              <p>Create your first shortened link to start tracking analytics.</p>
-
-              <div className={styles.onboardingSteps}>
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingNum}>1</div>
-                  <div>
-                    <strong>Paste your long URL</strong>
-                    <span>Drop any link you want to shorten</span>
-                  </div>
-                </div>
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingNum}>2</div>
-                  <div>
-                    <strong>Customize short link</strong>
-                    <span>Choose a custom alias or auto-generate</span>
-                  </div>
-                </div>
-                <div className={styles.onboardingStep}>
-                  <div className={styles.onboardingNum}>3</div>
-                  <div>
-                    <strong>Track performance</strong>
-                    <span>Watch clicks roll in with live analytics</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                className="btn-primary"
-                onClick={() => setShowCreateModal(true)}
-              >
-                <Plus size={18} />
-                <span>Create Your First Link</span>
-              </button>
-            </div>
-          )}
-        </>
+      {/* Progress bar */}
+      {stats.totalTasks > 0 && (
+        <div className={styles.progressSection}>
+          <div className={styles.progressHeader}>
+            <span className={styles.progressTitle}>Overall Progress</span>
+            <span className={styles.progressPercent}>
+              {Math.round((stats.doneTasks / stats.totalTasks) * 100)}%
+            </span>
+          </div>
+          <div className={styles.progressBar}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${(stats.doneTasks / stats.totalTasks) * 100}%` }}
+            ></div>
+          </div>
+          <div className={styles.progressLegend}>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: 'var(--status-todo)' }}></span>
+              To Do: {stats.todoTasks || 0}
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: 'var(--status-progress)' }}></span>
+              In Progress: {stats.inProgressTasks || 0}
+            </span>
+            <span className={styles.legendItem}>
+              <span className={styles.legendDot} style={{ background: 'var(--status-done)' }}></span>
+              Done: {stats.doneTasks || 0}
+            </span>
+          </div>
+        </div>
       )}
 
-      <CreateLinkModal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        onCreated={handleLinkCreated}
-      />
+      {/* Content grid */}
+      <div className={styles.contentGrid}>
+        {/* Overdue Tasks */}
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--error)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            Overdue Tasks
+          </h2>
+          {data?.overdueTasks?.length > 0 ? (
+            <div className={styles.taskList}>
+              {data.overdueTasks.map((task) => (
+                <Link
+                  key={task.id}
+                  href={`/dashboard/projects/${task.projectId}`}
+                  className={styles.taskItem}
+                >
+                  <div className={styles.taskInfo}>
+                    <span className={styles.taskTitle}>{task.title}</span>
+                    <span className={styles.taskMeta}>
+                      {task.project?.name} • Due {formatDate(task.dueDate)}
+                    </span>
+                  </div>
+                  <span className={`badge ${getPriorityClass(task.priority)}`}>
+                    {task.priority}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptySection}>
+              <p>No overdue tasks 🎉</p>
+            </div>
+          )}
+        </div>
+
+        {/* My Pending Tasks */}
+        <div className={styles.section}>
+          <h2 className={styles.sectionTitle}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            My Pending Tasks
+          </h2>
+          {data?.myPendingTasks?.length > 0 ? (
+            <div className={styles.taskList}>
+              {data.myPendingTasks.map((task) => (
+                <Link
+                  key={task.id}
+                  href={`/dashboard/projects/${task.projectId}`}
+                  className={styles.taskItem}
+                >
+                  <div className={styles.taskInfo}>
+                    <span className={styles.taskTitle}>{task.title}</span>
+                    <span className={styles.taskMeta}>
+                      {task.project?.name}
+                      {task.dueDate && ` • Due ${formatDate(task.dueDate)}`}
+                    </span>
+                  </div>
+                  <span className={`badge ${getStatusClass(task.status)}`}>
+                    {getStatusLabel(task.status)}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptySection}>
+              <p>No pending tasks assigned to you</p>
+            </div>
+          )}
+        </div>
+
+        {/* Recent Activity */}
+        <div className={`${styles.section} ${styles.sectionWide}`}>
+          <h2 className={styles.sectionTitle}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            Recent Tasks
+          </h2>
+          {data?.recentTasks?.length > 0 ? (
+            <div className={styles.taskList}>
+              {data.recentTasks.map((task) => (
+                <Link
+                  key={task.id}
+                  href={`/dashboard/projects/${task.projectId}`}
+                  className={styles.taskItem}
+                >
+                  <div className={styles.taskInfo}>
+                    <span className={styles.taskTitle}>{task.title}</span>
+                    <span className={styles.taskMeta}>
+                      {task.project?.name} • {formatDate(task.createdAt)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    <span className={`badge ${getStatusClass(task.status)}`}>
+                      {getStatusLabel(task.status)}
+                    </span>
+                    <span className={`badge ${getPriorityClass(task.priority)}`}>
+                      {task.priority}
+                    </span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className={styles.emptySection}>
+              <p>No tasks yet. Create a project to get started!</p>
+              <Link href="/dashboard/projects" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+                Create Project
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

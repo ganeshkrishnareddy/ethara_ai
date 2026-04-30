@@ -1,23 +1,34 @@
-import { SessionProvider } from 'next-auth/react';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
-import ToastContainer from '@/components/Toast';
-import styles from './layout.module.css';
 
 export const metadata = {
-  title: 'Dashboard — LinkForge',
-  description: 'Manage your links and view analytics',
+  title: 'Dashboard - TaskForge',
+  description: 'Manage your projects and tasks',
 };
 
-export default function DashboardLayout({ children }) {
+export default async function DashboardLayout({ children }) {
+  const session = await auth();
+
+  if (!session?.user) {
+    redirect('/auth/login');
+  }
+
   return (
-    <SessionProvider>
-      <div className={styles.layout}>
-        <Sidebar />
-        <main className={styles.main}>
-          {children}
-        </main>
-        <ToastContainer />
-      </div>
-    </SessionProvider>
+    <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <Sidebar user={session.user} />
+      <main
+        style={{
+          flex: 1,
+          marginLeft: 'var(--sidebar-width)',
+          padding: 'var(--spacing-xl)',
+          transition: 'margin-left var(--transition-base)',
+          maxWidth: '100%',
+          overflow: 'hidden',
+        }}
+      >
+        {children}
+      </main>
+    </div>
   );
 }

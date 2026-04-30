@@ -2,113 +2,71 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
+// GET /api/dashboard - Aggregated dashboard stats
 export async function GET() {
   try {
     const session = await auth();
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const userId = session.user.id;
 
-    // Get user's links
-    const links = await prisma.link.findMany({
+    // Get all projects the user is a member of
+    const memberships = await prisma.projectMember.findMany({
       where: { userId },
+      select: { projectId: true, role: true },
+    });
+
+    const projectIds = memberships.map((m) => m.projectId);
+
+    // Get all tasks across user's projects
+    const tasks = await prisma.task.findMany({
+      where: { projectId: { in: projectIds } },
       include: {
-        _count: { select: { clickEvents: true } },
+        assignee: { select: { id: true, name: true } },
+        project: { select: { id: true, name: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    const totalLinks = links.length;
-    const totalClicks = links.reduce((sum, link) => sum + link._count.clickEvents, 0);
+    const now = new Date();
 
-    // Clicks over last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Compute stats
+    const stats = {
+      totalProjects: projectIds.length,
+      totalTasks: tasks.length,
+      todoTasks: tasks.filter((t) => t.status === 'TODO').length,
+      inProgressTasks: tasks.filter((t) => t.status === 'IN_PROGRESS').length,
+      doneTasks: tasks.filter((t) => t.status === 'DONE').length,
+      overdueTasks: tasks.filter(
+        (t) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE'
+      ).length,
+      myTasks: tasks.filter((t) => t.assigneeId === userId).length,
+    };
 
-    const recentClicks = await prisma.clickEvent.findMany({
-      where: {
-        link: { userId },
-        timestamp: { gte: sevenDaysAgo },
-      },
-      orderBy: { timestamp: 'desc' },
-    });
+    // Recent tasks (last 10)
+    const recentTasks = tasks.slice(0, 10);
 
-    const clicksByDate = {};
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      const key = date.toISOString().split('T')[0];
-      clicksByDate[key] = 0;
-    }
-    recentClicks.forEach((event) => {
-      const key = event.timestamp.toISOString().split('T')[0];
-      if (clicksByDate[key] !== undefined) {
-        clicksByDate[key]++;
-      }
-    });
+    // Overdue tasks
+    const overdueTasks = tasks
+      .filter((t) => t.dueDate && new Date(t.dueDate) < now && t.status !== 'DONE')
+      .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+      .slice(0, 10);
 
-    // Top performing links
-    const topLinks = [...links]
-      .sort((a, b) => b._count.clickEvents - a._count.clickEvents)
-      .slice(0, 5)
-      .map((link) => ({
-        id: link.id,
-        shortCode: link.shortCode,
-        title: link.title,
-        originalUrl: link.originalUrl,
-        clicks: link._count.clickEvents,
-      }));
-
-    // Browser breakdown (across all user's links)
-    const allClickEvents = await prisma.clickEvent.findMany({
-      where: { link: { userId } },
-      select: { browser: true, device: true, referrer: true },
-    });
-
-    const browsers = {};
-    const devices = {};
-    const referrers = {};
-
-    allClickEvents.forEach((event) => {
-      const browser = event.browser || 'Unknown';
-      browsers[browser] = (browsers[browser] || 0) + 1;
-      
-      const device = event.device || 'Unknown';
-      devices[device] = (devices[device] || 0) + 1;
-
-      const referrer = event.referrer || 'Direct';
-      referrers[referrer] = (referrers[referrer] || 0) + 1;
-    });
+    // My assigned tasks that need attention
+    const myPendingTasks = tasks
+      .filter((t) => t.assigneeId === userId && t.status !== 'DONE')
+      .slice(0, 10);
 
     return NextResponse.json({
-      totalLinks,
-      totalClicks,
-      clicksToday: clicksByDate[new Date().toISOString().split('T')[0]] || 0,
-      clicksByDate: Object.entries(clicksByDate).map(([date, clicks]) => ({
-        date: new Date(date).toLocaleDateString('en-US', { weekday: 'short' }),
-        clicks,
-      })),
-      topLinks,
-      browsers: Object.entries(browsers)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5),
-      devices: Object.entries(devices)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value),
-      referrers: Object.entries(referrers)
-        .map(([name, value]) => ({ name, value }))
-        .sort((a, b) => b.value - a.value)
-        .slice(0, 5),
-      recentLinks: links.slice(0, 5),
+      stats,
+      recentTasks,
+      overdueTasks,
+      myPendingTasks,
     });
   } catch (error) {
-    console.error('Dashboard stats error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch dashboard stats' },
-      { status: 500 }
-    );
+    console.error('Error fetching dashboard:', error);
+    return NextResponse.json({ error: 'Failed to fetch dashboard data' }, { status: 500 });
   }
 }

@@ -1,37 +1,28 @@
 'use client';
 
-import { useState } from 'react';
-import styles from './Toast.module.css';
+import { useEffect, useState } from 'react';
 
-let toastId = 0;
-let addToastFn = null;
+export default function Toast({ message, type = 'info', onClose, duration = 4000 }) {
+  const [isVisible, setIsVisible] = useState(true);
 
-export function showToast(message, type = 'success') {
-  if (addToastFn) {
-    addToastFn({ id: ++toastId, message, type });
-  }
-}
-
-export default function ToastContainer() {
-  const [toasts, setToasts] = useState([]);
-
-  addToastFn = (toast) => {
-    setToasts((prev) => [...prev, toast]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-    }, 3000);
-  };
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      setTimeout(onClose, 200);
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
 
   return (
-    <div className={styles.container}>
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          className={`${styles.toast} ${styles[toast.type]}`}
-        >
-          <span>{toast.message}</span>
-        </div>
-      ))}
+    <div
+      className={`toast toast-${type}`}
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'translateX(0)' : 'translateX(20px)',
+        transition: 'all 200ms ease',
+      }}
+    >
+      {message}
     </div>
   );
 }

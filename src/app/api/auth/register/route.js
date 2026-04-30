@@ -6,6 +6,7 @@ export async function POST(request) {
   try {
     const { name, email, password } = await request.json();
 
+    // Validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: 'Name, email, and password are required' },
@@ -16,6 +17,14 @@ export async function POST(request) {
     if (password.length < 6) {
       return NextResponse.json(
         { error: 'Password must be at least 6 characters' },
+        { status: 400 }
+      );
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json(
+        { error: 'Please provide a valid email address' },
         { status: 400 }
       );
     }
@@ -38,18 +47,24 @@ export async function POST(request) {
     // Create user
     const user = await prisma.user.create({
       data: {
-        name,
-        email: email.toLowerCase(),
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
         password: hashedPassword,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
       },
     });
 
     return NextResponse.json(
-      { message: 'Account created successfully', userId: user.id },
+      { message: 'Account created successfully', user },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('Registration error:', error);
     return NextResponse.json(
       { error: 'Something went wrong. Please try again.' },
       { status: 500 }

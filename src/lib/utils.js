@@ -1,47 +1,115 @@
-import { customAlphabet } from 'nanoid';
+import { auth } from './auth';
 
-const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 6);
-
-export function generateShortCode() {
-  return nanoid();
+/**
+ * Get the current authenticated session.
+ * Returns null if not authenticated.
+ */
+export async function getSession() {
+  return await auth();
 }
 
-export function isValidUrl(string) {
-  try {
-    const url = new URL(string);
-    return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch {
-    return false;
-  }
+/**
+ * Get the current user's ID from the session.
+ * Returns null if not authenticated.
+ */
+export async function getCurrentUserId() {
+  const session = await auth();
+  return session?.user?.id || null;
 }
 
-export function formatNumber(num) {
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
+/**
+ * Check if a user is a member of a project and return their role.
+ * Returns { isMember: boolean, role: string | null, membership: object | null }
+ */
+export async function getProjectMembership(prisma, userId, projectId) {
+  const membership = await prisma.projectMember.findUnique({
+    where: {
+      userId_projectId: { userId, projectId },
+    },
+  });
+
+  return {
+    isMember: !!membership,
+    role: membership?.role || null,
+    membership,
+  };
 }
 
+/**
+ * Check if a user is an admin of a project.
+ */
+export async function isProjectAdmin(prisma, userId, projectId) {
+  const { role } = await getProjectMembership(prisma, userId, projectId);
+  return role === 'ADMIN';
+}
+
+/**
+ * Format a date for display.
+ */
 export function formatDate(date) {
+  if (!date) return '';
   return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
   });
 }
 
-export function timeAgo(date) {
-  const seconds = Math.floor((new Date() - new Date(date)) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return formatDate(date);
+/**
+ * Check if a task is overdue.
+ */
+export function isOverdue(dueDate, status) {
+  if (!dueDate || status === 'DONE') return false;
+  return new Date(dueDate) < new Date();
 }
 
-export function getBaseUrl() {
-  if (typeof window !== 'undefined') return window.location.origin;
-  return process.env.NEXTAUTH_URL || 'http://localhost:3000';
+/**
+ * Get initials from a name.
+ */
+export function getInitials(name) {
+  if (!name) return '??';
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
 }
+
+/**
+ * Status color map.
+ */
+export const STATUS_COLORS = {
+  TODO: { bg: '#3b82f620', text: '#60a5fa', border: '#3b82f640' },
+  IN_PROGRESS: { bg: '#f59e0b20', text: '#fbbf24', border: '#f59e0b40' },
+  DONE: { bg: '#10b98120', text: '#34d399', border: '#10b98140' },
+};
+
+/**
+ * Priority color map.
+ */
+export const PRIORITY_COLORS = {
+  LOW: { bg: '#64748b20', text: '#94a3b8', border: '#64748b40' },
+  MEDIUM: { bg: '#3b82f620', text: '#60a5fa', border: '#3b82f640' },
+  HIGH: { bg: '#f97316 20', text: '#fb923c', border: '#f9731640' },
+  URGENT: { bg: '#ef444420', text: '#f87171', border: '#ef444440' },
+};
+
+/**
+ * Status labels.
+ */
+export const STATUS_LABELS = {
+  TODO: 'To Do',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Done',
+};
+
+/**
+ * Priority labels.
+ */
+export const PRIORITY_LABELS = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  URGENT: 'Urgent',
+};
